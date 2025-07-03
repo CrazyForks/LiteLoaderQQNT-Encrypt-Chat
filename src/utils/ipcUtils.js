@@ -21,11 +21,14 @@ function ipcModifyer(ipcProxy, window) {
             let modifiedArgs = args;
             try {//thisArg是WebContent对象
                 //设置ipc通道名
-                const ipcName = args?.[3]?.[1]?.[0]
+
+                //新版QQ的格式已修改。
+                const ipcName = args?.[3]?.[1]?.cmdName
                 const eventName = args?.[3]?.[0]?.eventName
                 //测试
                 //if(ipcName==='nodeIKernelMsgService/ForwardMsgWithComment') console.log(JSON.stringify(args))
                 //if (eventName !== "ns-LoggerApi-2") console.log(JSON.stringify(args))//调试的时候用
+                if (ipcName === 'nodeIKernelMsgService/sendMsg') console.log(JSON.stringify(args))
 
                 if (ipcName === 'nodeIKernelMsgService/sendMsg') modifiedArgs = await ipcMsgModify(args, window);//修改发送消息
                 if (ipcName === 'openMediaViewer') modifiedArgs = ipcOpenImgModify(args);//修改图片查看器
@@ -41,6 +44,8 @@ function ipcModifyer(ipcProxy, window) {
     })
 }
 
+
+
 /**
  * 处理QQ消息,对符合条件的msgElement的content进行加密再返回
  * @param args
@@ -48,10 +53,12 @@ function ipcModifyer(ipcProxy, window) {
  * @returns {args}
  */
 async function ipcMsgModify(args, window) {
-    if (!args?.[3]?.[1]?.[0] || args[3][1][0] !== 'nodeIKernelMsgService/sendMsg') return args;
-
+    const ipcName = args?.[3]?.[1]?.cmdName
+    if (ipcName !== 'nodeIKernelMsgService/sendMsg') return args;
+    const payload=args[3][1].payload[0]//[1]是null.
     console.log('[EC ipcUtils ipcMsgModify]下面打印出nodeIKernelMsgService/sendMsg的内容')
-    console.log(JSON.stringify(args[3][1][1], null, 2))
+    //新版QQ改动
+    console.log(JSON.stringify(payload, null, 2))
     //console.log(args[3][1][1].msgElements?.[0].textElement)
 
     //下面判断加密是否启用，启用了就修改消息内容
@@ -60,8 +67,8 @@ async function ipcMsgModify(args, window) {
 
     //————————————————————————————————————————————————————————————————————
     //修改原始消息
-    const peerUid = args[3][1][1].peer?.peerUid
-    for (let item of args[3][1][1].msgElements) {
+    const peerUid = payload.peer?.peerUid
+    for (let item of payload.msgElements) {
 
         //说明消息内容是文字类
         if (item.elementType === 1) {
@@ -152,7 +159,7 @@ async function ipcMsgModify(args, window) {
 
             } else textElement.textElement.content = messageEncryptor('[EC]文件发送失败，可能是文件过大', peerUid)
 
-            args[3][1][1].msgElements = [textElement]
+            payload.msgElements = [textElement]
         }
     }
 
